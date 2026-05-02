@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/reactive_tile.dart';
+import '../../widgets/knife_transition.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,12 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: ReactiveTile(
-          width: 350,
-          height: 400,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
+        child: KnifeTransition(
+          initialOffset: 200.0,
+          child: ReactiveTile(
+            width: 350,
+            height: 400,
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -102,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

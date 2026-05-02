@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/knife_transition.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -24,14 +25,25 @@ class AdminDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildMetricCards(),
+            KnifeTransition(
+              initialOffset: -50,
+              child: _buildMetricCards(),
+            ),
             const SizedBox(height: 32),
-            const Text(
-              'Flagged Reviews Queue',
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+            const KnifeTransition(
+              delay: Duration(milliseconds: 100),
+              initialOffset: 100,
+              child: Text(
+                'Flagged Reviews Queue',
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 16),
-            _buildFlaggedDataTable(),
+            KnifeTransition(
+              delay: const Duration(milliseconds: 200),
+              initialOffset: 200,
+              child: _buildFlaggedDataTable(),
+            ),
           ],
         ),
       ),

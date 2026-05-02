@@ -54,27 +54,37 @@ class AppTheme {
 
   static BoxDecoration get neuSkeuomorphicBox => BoxDecoration(
     borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: metallicLight, width: 1.5),
+    border: Border.all(color: metallicLight, width: 2),
     gradient: const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        Color(0xFF383838), // Lighter top edge
-        Color(0xFF222222), // Darker bottom edge
+        Color(0xFF424242), // Lighter top edge (enhanced contrast)
+        Color(0xFF1E1E1E), // Darker bottom edge
       ],
     ),
     boxShadow: const [
       // Top left light highlight
       BoxShadow(
-        color: Color(0xFF4A4A4A),
-        offset: Offset(-3, -3),
-        blurRadius: 6,
+        color: Color(0xFF555555),
+        offset: Offset(-4, -4),
+        blurRadius: 10,
+        spreadRadius: 1,
       ),
       // Bottom right dark shadow
       BoxShadow(
-        color: Color(0xFF000000),
-        offset: Offset(4, 4),
-        blurRadius: 8,
+        color: Color(0xFF0A0A0A),
+        offset: Offset(6, 6),
+        blurRadius: 12,
+        spreadRadius: 2,
+      ),
+      // Ambient inner glow
+      BoxShadow(
+        color: Color(0xFF333333),
+        offset: Offset(0, 0),
+        blurRadius: 2,
+        spreadRadius: 0,
+        blurStyle: BlurStyle.inner,
       ),
     ],
   );

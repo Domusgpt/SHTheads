@@ -17,6 +17,10 @@ void main() {
       ),
     );
 
+    // Wait for the KnifeTransition delayed Future to complete
+    // Cannot use pumpAndSettle because of infinite CRT flicker
+    await tester.pump(const Duration(seconds: 1));
+
     // Initial route is /login, we should see the login screen title
     expect(find.text('Tradesman Portal'), findsWidgets);
   });

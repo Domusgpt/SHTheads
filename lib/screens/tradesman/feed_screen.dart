@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/reactive_tile.dart';
 import '../../widgets/search_filter_header.dart';
+import '../../widgets/knife_transition.dart';
 
 class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
@@ -22,13 +23,16 @@ class FeedScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: 5,
               itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: ReactiveTile(
-                    height: 320, // Increased height for rich media and actions
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
+                return KnifeTransition(
+                  delay: Duration(milliseconds: 100 * index), // Staggered knife unsheathing
+                  initialOffset: 150.0 + (index * 20.0),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ReactiveTile(
+                      height: 320, // Increased height for rich media and actions
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Header (Address + Star Rating)
@@ -98,6 +102,7 @@ class FeedScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ),
                 );
               },
             ),
@@ -143,10 +148,12 @@ class _AddReviewDialogState extends State<AddReviewDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppTheme.darkSurface,
-      title: const Text('Add Review', style: TextStyle(color: AppTheme.accentOrange)),
-      content: SingleChildScrollView(
+    return KnifeTransition(
+      initialOffset: -200, // Drop in from top like a guillotine
+      child: AlertDialog(
+        backgroundColor: AppTheme.darkSurface,
+        title: const Text('Add Review', style: TextStyle(color: AppTheme.accentOrange)),
+        content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -208,11 +215,12 @@ class _AddReviewDialogState extends State<AddReviewDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
         ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Submit'),
-        ),
-      ],
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
     );
   }
 }
