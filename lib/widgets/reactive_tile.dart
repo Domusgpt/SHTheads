@@ -68,8 +68,10 @@ class _ReactiveTileState extends State<ReactiveTile> with SingleTickerProviderSt
     if (!_isHovered || _animation.value == 0) return Matrix4.identity();
 
     // Calculate rotation angles based on pointer position relative to center
+    // We use a safe fallback since context.size isn't available during initial build
+    final double defaultWidth = 300.0;
     final centerX = widget.width == double.infinity
-        ? (context.size?.width ?? 0) / 2
+        ? defaultWidth / 2
         : widget.width / 2;
     final centerY = widget.height / 2;
 
