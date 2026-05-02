@@ -7,6 +7,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/tradesman/tradesman_shell.dart';
 import 'screens/tradesman/map_screen.dart';
 import 'screens/tradesman/feed_screen.dart';
+import 'screens/tradesman/profile_screen.dart';
 import 'screens/admin/admin_dashboard.dart';
 
 class AppRouter {
@@ -50,6 +51,10 @@ class AppRouter {
             GoRoute(
               path: '/tradesman/feed',
               builder: (context, state) => const FeedScreen(),
+            ),
+            GoRoute(
+              path: '/tradesman/profile',
+              builder: (context, state) => const ProfileScreen(),
             ),
           ],
         ),

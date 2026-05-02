@@ -17,18 +17,14 @@ class TradesmanShell extends StatelessWidget {
       currentIndex = 0;
     } else if (location.startsWith('/tradesman/feed')) {
       currentIndex = 1;
+    } else if (location.startsWith('/tradesman/profile')) {
+      currentIndex = 2;
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('SHTheads', style: TextStyle(color: AppTheme.accentOrange)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppTheme.accentOrange),
-            onPressed: () => context.read<AuthProvider>().signOut(),
-          )
-        ],
       ),
       body: child,
       bottomNavigationBar: Container(
@@ -48,6 +44,8 @@ class TradesmanShell extends StatelessWidget {
               context.go('/tradesman/map');
             } else if (index == 1) {
               context.go('/tradesman/feed');
+            } else if (index == 2) {
+              context.go('/tradesman/profile');
             }
           },
           items: const [
@@ -58,6 +56,10 @@ class TradesmanShell extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.list_alt),
               label: 'Feed',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
         ),

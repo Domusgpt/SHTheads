@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/reactive_tile.dart';
 import '../../widgets/search_filter_header.dart';
+import '../../models/property.dart';
+import '../../services/mock_data_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -13,9 +15,25 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Coordinates based on "E Bergen Ave" reference (approximate coordinates for demo)
-  // We'll use a generic location in NJ for demonstration
-  final LatLng _mapCenter = const LatLng(40.8872, -74.0326); // Hackensack area, Bergen Ave
+  final LatLng _mapCenter = const LatLng(39.7817, -89.6501); // Centered on mock data
+  List<Property> _properties = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProperties();
+  }
+
+  Future<void> _loadProperties() async {
+    final properties = await MockDataService.getProperties();
+    if (mounted) {
+      setState(() {
+        _properties = properties;
+        _isLoading = false;
+      });
+    }
+  }
 
   void _showComingSoon() {
     showDialog(
@@ -104,7 +122,7 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             options: MapOptions(
               initialCenter: _mapCenter,
-              initialZoom: 18.0, // High zoom to see houses like in the image
+              initialZoom: 15.0,
             ),
             children: [
               ColorFiltered(
@@ -128,55 +146,69 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
               MarkerLayer(
-                markers: [
-                  Marker(
-                    point: const LatLng(40.88725, -74.0326),
+                markers: _properties.map((prop) {
+                  return Marker(
+                    point: LatLng(prop.lat, prop.lng),
                     width: 50,
                     height: 50,
-                    child: const Icon(Icons.home_repair_service, color: AppTheme.accentOrange, size: 40),
-                  ),
-                  Marker(
-                    point: const LatLng(40.88715, -74.0325),
-                    width: 50,
-                    height: 50,
-                    child: const Icon(Icons.warning_amber_rounded, color: AppTheme.accentYellow, size: 40),
-                  ),
-                ],
+                    child: GestureDetector(
+                      onTap: _showComingSoon, // In the future, this would scroll to the specific card
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.darkSurface,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow, width: 2),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
+                          ]
+                        ),
+                        child: Center(
+                          child: Text(
+                            prop.averageRating.toStringAsFixed(1),
+                            style: TextStyle(
+                              color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow,
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ],
           ),
 
-          // UI Overlay for mock reviews using Reactive Tiles
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
+
+          // UI Overlay for mock properties using Reactive Tiles
           Positioned(
             bottom: 20,
             left: 10,
             right: 10,
             child: SizedBox(
               height: 180,
-              child: ListView(
+              child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                children: [
-                  _buildMockReviewCard(
-                    title: "42 E Bergen Ave",
-                    rating: "2.1/5",
-                    comment: "Customer thinks 'flushable wipes' means flushable. Sent snake down, pulled up a sweater.",
-                    author: "Joe's Plumbing",
-                  ),
-                  const SizedBox(width: 16),
-                  _buildMockReviewCard(
-                    title: "38 E Bergen Ave",
-                    rating: "4.5/5",
-                    comment: "Paid in cash and offered me a cold beer. Electrical panel was a rat's nest but good folks.",
-                    author: "Sparky Dan",
-                  ),
-                  const SizedBox(width: 16),
-                  _buildMockReviewCard(
-                    title: "50 E Bergen Ave",
-                    rating: "1.0/5",
-                    comment: "Refused to pay for the drywall patching after I fixed the stud they broke. Avoid.",
-                    author: "Mike the Builder",
-                  ),
-                ],
+                itemCount: _properties.length,
+                itemBuilder: (context, index) {
+                  final prop = _properties[index];
+                  // Find a mock review associated with this property
+                  final associatedReview = MockDataService.reviews.firstWhere(
+                    (r) => r.propertyId == prop.id,
+                    orElse: () => MockDataService.reviews.first, // fallback
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: _buildMockReviewCard(
+                      title: prop.address,
+                      rating: "${prop.averageRating}/5",
+                      comment: associatedReview.text,
+                      author: associatedReview.authorName,
+                    ),
+                  );
+                },
               ),
             ),
           ),

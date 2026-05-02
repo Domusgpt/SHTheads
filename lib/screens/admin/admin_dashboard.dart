@@ -63,30 +63,37 @@ class AdminDashboard extends StatelessWidget {
   }
 
   Widget _buildFlaggedDataTable() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.darkSurface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.metallicLight),
-      ),
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.black26),
-        columns: const [
-          DataColumn(label: Text('Address', style: TextStyle(color: AppTheme.accentOrange))),
-          DataColumn(label: Text('Author', style: TextStyle(color: AppTheme.accentOrange))),
-          DataColumn(label: Text('Flag Reason', style: TextStyle(color: AppTheme.accentOrange))),
-          DataColumn(label: Text('Actions', style: TextStyle(color: AppTheme.accentOrange))),
-        ],
-        rows: [
-          _buildRow('42 E Bergen Ave', 'Joe\'s Plumbing', 'Inappropriate Language'),
-          _buildRow('109 Main St', 'Sparky Dan', 'Spam / Fake Address'),
-          _buildRow('500 Elm St', 'Mike Builder', 'Defamation Dispute'),
-        ],
-      ),
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppTheme.darkSurface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.metallicLight),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.black26),
+              columns: const [
+                DataColumn(label: Text('Address', style: TextStyle(color: AppTheme.accentOrange))),
+                DataColumn(label: Text('Author', style: TextStyle(color: AppTheme.accentOrange))),
+                DataColumn(label: Text('Flag Reason', style: TextStyle(color: AppTheme.accentOrange))),
+                DataColumn(label: Text('Actions', style: TextStyle(color: AppTheme.accentOrange))),
+              ],
+              rows: [
+                _buildRow(context, '42 E Bergen Ave', 'Joe\'s Plumbing', 'Inappropriate Language'),
+                _buildRow(context, '109 Main St', 'Sparky Dan', 'Spam / Fake Address'),
+                _buildRow(context, '500 Elm St', 'Mike Builder', 'Defamation Dispute'),
+              ],
+            ),
+          ),
+        );
+      }
     );
   }
 
-  DataRow _buildRow(String address, String author, String reason) {
+  DataRow _buildRow(BuildContext context, String address, String author, String reason) {
     return DataRow(
       cells: [
         DataCell(Text(address, style: const TextStyle(color: AppTheme.textPrimary))),
@@ -95,8 +102,28 @@ class AdminDashboard extends StatelessWidget {
         DataCell(
           Row(
             children: [
-              IconButton(icon: const Icon(Icons.check, color: Colors.green), onPressed: () {}),
-              IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.check, color: Colors.green),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Review for $address approved.', style: const TextStyle(color: Colors.white)),
+                      backgroundColor: Colors.green.shade800,
+                    ),
+                  );
+                }
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Review by $author deleted.', style: const TextStyle(color: Colors.white)),
+                      backgroundColor: Colors.red.shade900,
+                    ),
+                  );
+                }
+              ),
             ],
           ),
         ),

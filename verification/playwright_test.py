@@ -4,9 +4,14 @@ def run_test():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto('http://localhost:8080/SHTheads/')
+        page.goto('http://localhost:8080/SHTheads/#/tradesman/feed')
         page.wait_for_timeout(5000)
-        page.screenshot(path='verification/playwright_test.png')
+        page.screenshot(path='verification/playwright_feed.png')
+
+        page.goto('http://localhost:8080/SHTheads/#/tradesman/profile')
+        page.wait_for_timeout(3000)
+        page.screenshot(path='verification/playwright_profile.png')
+
         browser.close()
 
 if __name__ == "__main__":
