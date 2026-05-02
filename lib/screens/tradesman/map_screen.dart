@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/reactive_tile.dart';
+import '../../widgets/search_filter_header.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -178,7 +179,15 @@ class _MapScreenState extends State<MapScreen> {
                 ],
               ),
             ),
-          )
+          ),
+
+          // Search and Filter Header (Top Overlay)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SearchFilterHeader(),
+          ),
         ],
       ),
     );
