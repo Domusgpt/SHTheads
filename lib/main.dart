@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'router.dart';
 import 'theme/app_theme.dart';
-import 'screens/home_screen.dart';
 
 void main() {
-  runApp(const SHTheadsApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const SHTheadsApp(),
+    ),
+  );
 }
 
 class SHTheadsApp extends StatelessWidget {
@@ -11,10 +20,13 @@ class SHTheadsApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final authProvider = context.read<AuthProvider>();
+    final router = AppRouter.createRouter(authProvider);
+
+    return MaterialApp.router(
       title: 'SHTheads',
       theme: AppTheme.darkTheme,
-      home: const HomeScreen(),
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
   }

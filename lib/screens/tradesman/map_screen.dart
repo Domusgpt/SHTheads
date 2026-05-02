@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../theme/app_theme.dart';
-import '../widgets/reactive_tile.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/reactive_tile.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _MapScreenState extends State<MapScreen> {
   // Coordinates based on "E Bergen Ave" reference (approximate coordinates for demo)
   // We'll use a generic location in NJ for demonstration
   final LatLng _mapCenter = const LatLng(40.8872, -74.0326); // Hackensack area, Bergen Ave
