@@ -53,7 +53,6 @@ class AppTheme {
   );
 
   static BoxDecoration get neuSkeuomorphicBox => BoxDecoration(
-    color: darkSurface,
     borderRadius: BorderRadius.circular(16),
     border: Border.all(color: metallicLight, width: 1.5),
     gradient: const LinearGradient(
