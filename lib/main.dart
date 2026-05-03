@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'providers/auth_provider.dart';
+import 'providers/filter_provider.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 import 'widgets/crt_wrapper.dart';
@@ -24,6 +25,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => FilterProvider()),
       ],
       child: const SHTheadsApp(),
     ),

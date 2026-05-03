@@ -4,13 +4,23 @@ import '../../widgets/reactive_tile.dart';
 import '../../widgets/search_filter_header.dart';
 import '../../widgets/knife_transition.dart';
 import '../../models/review.dart';
+import 'package:provider/provider.dart';
 import '../../services/firestore_service.dart';
+import '../../providers/filter_provider.dart';
+
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import '../../services/storage_service.dart';
+import '../../services/geocoding_service.dart';
+import '../../models/property.dart';
 
 class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final filterProvider = context.watch<FilterProvider>();
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.accentOrange,
@@ -22,7 +32,10 @@ class FeedScreen extends StatelessWidget {
           const SearchFilterHeader(),
           Expanded(
             child: StreamBuilder<List<Review>>(
-              stream: FirestoreService.streamReviews(),
+              stream: FirestoreService.streamReviews(
+                searchQuery: filterProvider.searchQuery,
+                category: filterProvider.selectedCategory,
+              ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
@@ -236,12 +249,105 @@ class AddReviewDialog extends StatefulWidget {
 }
 
 class _AddReviewDialogState extends State<AddReviewDialog> {
-  bool _imageSelected = false;
+  final _addressController = TextEditingController();
+  final _textController = TextEditingController();
+  int _rating = 1;
 
-  void _simulateImagePicker() async {
-    // Tomorrow: Use image_picker and upload to FirebaseStorage/GCS
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _imageSelected = true);
+  bool _isSubmitting = false;
+  Uint8List? _imageBytes;
+  String? _fileExtension;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+        _fileExtension = image.name.split('.').last.toLowerCase();
+        if (_fileExtension == null || _fileExtension!.isEmpty) {
+          _fileExtension = 'png';
+        }
+      });
+    }
+  }
+
+  Future<void> _submitReview() async {
+    if (_addressController.text.isEmpty || _textController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address and Review are required')));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // 1. Geocode Address
+      final latLng = await GeocodingService.geocodeAddress(_addressController.text);
+      if (latLng == null) {
+        throw Exception('Could not locate address on map. Please verify.');
+      }
+
+      // 2. Upload Image (if selected)
+      List<String> imageUrls = [];
+      if (_imageBytes != null && _fileExtension != null) {
+        final url = await StorageService.uploadReviewImage(_imageBytes!, _fileExtension!);
+        if (url != null) imageUrls.add(url);
+      }
+
+      // 3. Create Property Doc (or we'd update existing in a full prod app)
+      final propertyId = const Uuid().v4();
+      final newProperty = Property(
+        id: propertyId,
+        address: _addressController.text,
+        lat: latLng.latitude,
+        lng: latLng.longitude,
+        averageRating: _rating.toDouble(),
+      );
+      // We would have a FirestoreService.addProperty here, but adding review is enough for MVP feed
+
+      // 4. Create Review Doc
+      final reviewId = const Uuid().v4();
+      final newReview = Review(
+        id: reviewId,
+        propertyId: propertyId,
+        propertyAddress: _addressController.text,
+        authorName: 'Live User',
+        authorTrade: 'Verified Trade',
+        text: _textController.text,
+        rating: _rating,
+        imageUrls: imageUrls,
+        upvotes: 0,
+        commentsCount: 0,
+        createdAt: DateTime.now(),
+      );
+
+      await FirestoreService.addReview(newReview);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Review published successfully!'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    _textController.dispose();
+    super.dispose();
   }
 
   @override
@@ -256,49 +362,72 @@ class _AddReviewDialogState extends State<AddReviewDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: _addressController,
+              decoration: const InputDecoration(
                 labelText: 'Address',
                 labelStyle: TextStyle(color: AppTheme.textSecondary),
                 enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.metallicLight)),
                 focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.accentOrange)),
               ),
-              style: TextStyle(color: AppTheme.textPrimary),
+              style: const TextStyle(color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 16),
-            const TextField(
+            TextField(
+              controller: _textController,
               maxLines: 3,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Review / Warning',
                 labelStyle: TextStyle(color: AppTheme.textSecondary),
                 enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.metallicLight)),
                 focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.accentOrange)),
               ),
-              style: TextStyle(color: AppTheme.textPrimary),
+              style: const TextStyle(color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Rating:', style: TextStyle(color: AppTheme.textSecondary)),
+                Row(
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < _rating ? Icons.star : Icons.star_border,
+                        color: AppTheme.accentYellow,
+                      ),
+                      onPressed: () => setState(() => _rating = index + 1),
+                    );
+                  }),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             GestureDetector(
-              onTap: _simulateImagePicker,
+              onTap: _pickImage,
               child: Container(
                 height: 100,
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   border: Border.all(color: AppTheme.metallicLight, style: BorderStyle.solid),
                   borderRadius: BorderRadius.circular(8),
+                  image: _imageBytes != null
+                      ? DecorationImage(image: MemoryImage(_imageBytes!), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.5), BlendMode.darken))
+                      : null,
                 ),
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        _imageSelected ? Icons.check_circle : Icons.camera_alt,
-                        color: _imageSelected ? AppTheme.accentYellow : AppTheme.textSecondary,
+                        _imageBytes != null ? Icons.check_circle : Icons.camera_alt,
+                        color: _imageBytes != null ? AppTheme.accentYellow : AppTheme.textSecondary,
                         size: 32,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _imageSelected ? 'Image Ready for GCS Upload' : 'Tap to select evidence photo',
-                        style: TextStyle(color: _imageSelected ? AppTheme.accentYellow : AppTheme.textSecondary),
+                        _imageBytes != null ? 'Image Selected' : 'Tap to select evidence photo',
+                        style: TextStyle(color: _imageBytes != null ? AppTheme.accentYellow : AppTheme.textSecondary),
                       ),
                     ],
                   ),
@@ -310,12 +439,14 @@ class _AddReviewDialogState extends State<AddReviewDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
           child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
         ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Submit'),
+            onPressed: _isSubmitting ? null : _submitReview,
+            child: _isSubmitting
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Text('Submit'),
           ),
         ],
       ),

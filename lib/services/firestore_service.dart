@@ -6,13 +6,14 @@ import 'mock_data_service.dart';
 class FirestoreService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static Stream<List<Review>> streamReviews() {
+  static Stream<List<Review>> streamReviews({String searchQuery = '', String category = 'All'}) {
     try {
       return _db
           .collection('reviews')
           .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) {
+          .map((snapshot) {
+             var reviews = snapshot.docs.map((doc) {
                 final data = doc.data();
                 return Review(
                   id: doc.id,
@@ -27,7 +28,29 @@ class FirestoreService {
                   commentsCount: data['commentsCount'] ?? 0,
                   createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
                 );
-              }).toList())
+              }).toList();
+
+              if (category != 'All') {
+                 // For MVP, if it's a danger tag, we filter by bad rating (<= 2).
+                 // Otherwise we filter by trade.
+                 if (category.contains('Bad') || category.contains('No Permits')) {
+                    reviews = reviews.where((r) => r.rating <= 2).toList();
+                 } else {
+                    reviews = reviews.where((r) => r.authorTrade.toLowerCase().contains(category.toLowerCase())).toList();
+                 }
+              }
+
+              if (searchQuery.isNotEmpty) {
+                 final lowerQuery = searchQuery.toLowerCase();
+                 reviews = reviews.where((r) =>
+                    r.propertyAddress.toLowerCase().contains(lowerQuery) ||
+                    r.text.toLowerCase().contains(lowerQuery) ||
+                    r.authorName.toLowerCase().contains(lowerQuery)
+                 ).toList();
+              }
+
+              return reviews;
+          })
           .handleError((error) {
         // Fallback to mock data if Firebase config is missing or invalid
         print('Firebase stream error, falling back to mock reviews: $error');
