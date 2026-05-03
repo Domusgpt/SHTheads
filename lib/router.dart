@@ -8,6 +8,7 @@ import 'screens/tradesman/tradesman_shell.dart';
 import 'screens/tradesman/map_screen.dart';
 import 'screens/tradesman/feed_screen.dart';
 import 'screens/tradesman/profile_screen.dart';
+import 'screens/tradesman/inbox_screen.dart';
 import 'screens/admin/admin_dashboard.dart';
 
 class AppRouter {
@@ -53,10 +54,21 @@ class AppRouter {
               builder: (context, state) => const FeedScreen(),
             ),
             GoRoute(
+              path: '/tradesman/inbox',
+              builder: (context, state) => const InboxScreen(),
+            ),
+            GoRoute(
               path: '/tradesman/profile',
               builder: (context, state) => const ProfileScreen(),
             ),
           ],
+        ),
+        // Chat detail is outside the shell (no bottom nav)
+        GoRoute(
+          path: '/tradesman/chat/:roomId',
+          builder: (context, state) => ChatDetailScreen(
+            roomId: state.pathParameters['roomId']!,
+          ),
         ),
       ],
     );

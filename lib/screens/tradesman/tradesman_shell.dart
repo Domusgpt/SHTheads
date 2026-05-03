@@ -17,8 +17,10 @@ class TradesmanShell extends StatelessWidget {
       currentIndex = 0;
     } else if (location.startsWith('/tradesman/feed')) {
       currentIndex = 1;
-    } else if (location.startsWith('/tradesman/profile')) {
+    } else if (location.startsWith('/tradesman/inbox')) {
       currentIndex = 2;
+    } else if (location.startsWith('/tradesman/profile')) {
+      currentIndex = 3;
     }
 
     return Scaffold(
@@ -39,12 +41,15 @@ class TradesmanShell extends StatelessWidget {
           selectedItemColor: AppTheme.accentOrange,
           unselectedItemColor: AppTheme.textSecondary,
           currentIndex: currentIndex,
+          type: BottomNavigationBarType.fixed,
           onTap: (index) {
             if (index == 0) {
               context.go('/tradesman/map');
             } else if (index == 1) {
               context.go('/tradesman/feed');
             } else if (index == 2) {
+              context.go('/tradesman/inbox');
+            } else if (index == 3) {
               context.go('/tradesman/profile');
             }
           },
@@ -56,6 +61,10 @@ class TradesmanShell extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.list_alt),
               label: 'Feed',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.inbox),
+              label: 'Inbox',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person),

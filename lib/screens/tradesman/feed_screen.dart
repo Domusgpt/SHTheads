@@ -7,6 +7,8 @@ import '../../models/review.dart';
 import 'package:provider/provider.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/filter_provider.dart';
+import '../../providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
@@ -232,8 +234,28 @@ class _ReviewDetailDialog extends StatelessWidget {
         ),
         actions: [
           TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Open a direct message chat room with the author of this review
+              final currentUserId = context.read<AuthProvider>().currentUserId ?? 'mock_user_1';
+              // Since author name is often the trade name, use it as a proxy for their ID in MVP
+              final targetUserId = review.authorName;
+
+              if (currentUserId == targetUserId) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You can't message yourself!")));
+                return;
+              }
+
+              final roomId = await FirestoreService.getOrCreateChatRoom(currentUserId, targetUserId);
+              if (context.mounted) {
+                 context.push('/tradesman/chat/$roomId');
+              }
+            },
+            child: const Text('Message Pro', style: TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: AppTheme.accentYellow)),
+            child: const Text('Close', style: TextStyle(color: AppTheme.textSecondary)),
           ),
         ],
       ),

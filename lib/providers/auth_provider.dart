@@ -13,6 +13,14 @@ class AuthProvider extends ChangeNotifier {
   UserRole get role => _role;
   bool get isAuthenticated => _role != UserRole.unauthenticated;
 
+  String? get currentUserId {
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (e) {
+      return null;
+    }
+  }
+
   AuthProvider() {
     try {
       FirebaseAuth.instance.authStateChanges().listen((User? user) {

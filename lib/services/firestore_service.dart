@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/review.dart';
 import '../models/property.dart';
+import '../models/chat.dart';
 import 'mock_data_service.dart';
 
 class FirestoreService {
@@ -101,5 +102,96 @@ class FirestoreService {
     } catch (e) {
       print('Firebase add review error: $e');
     }
+  }
+
+  // --- Messaging Logic ---
+
+  static Stream<List<ChatRoom>> streamInbox(String currentUserId) {
+    try {
+      return _db
+          .collection('chats')
+          .where('participants', arrayContains: currentUserId)
+          .orderBy('lastUpdatedAt', descending: true)
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) {
+                final data = doc.data();
+                return ChatRoom(
+                  id: doc.id,
+                  participants: List<String>.from(data['participants'] ?? []),
+                  lastMessage: data['lastMessage'] ?? '',
+                  lastUpdatedAt: (data['lastUpdatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                );
+              }).toList());
+    } catch (e) {
+      print('Inbox error: $e');
+      return Stream.value([]);
+    }
+  }
+
+  static Stream<List<ChatMessage>> streamChatMessages(String roomId) {
+    try {
+      return _db
+          .collection('chats')
+          .doc(roomId)
+          .collection('messages')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) {
+                final data = doc.data();
+                return ChatMessage(
+                  id: doc.id,
+                  senderId: data['senderId'] ?? '',
+                  senderName: data['senderName'] ?? 'Unknown',
+                  text: data['text'] ?? '',
+                  createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                );
+              }).toList());
+    } catch (e) {
+      print('Messages error: $e');
+      return Stream.value([]);
+    }
+  }
+
+  static Future<void> sendMessage(String roomId, String senderId, String senderName, String text) async {
+    try {
+      final batch = _db.batch();
+      final roomRef = _db.collection('chats').doc(roomId);
+      final msgRef = roomRef.collection('messages').doc();
+
+      batch.set(msgRef, {
+        'senderId': senderId,
+        'senderName': senderName,
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      batch.update(roomRef, {
+        'lastMessage': text,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+    } catch (e) {
+      print('Send message error: $e');
+    }
+  }
+
+  static Future<String> getOrCreateChatRoom(String currentUserId, String targetUserId) async {
+    final roomId = currentUserId.compareTo(targetUserId) < 0
+      ? '${currentUserId}_$targetUserId'
+      : '${targetUserId}_$currentUserId';
+
+    final roomRef = _db.collection('chats').doc(roomId);
+    final doc = await roomRef.get();
+
+    if (!doc.exists) {
+      await roomRef.set({
+        'participants': [currentUserId, targetUserId],
+        'lastMessage': 'Chat started',
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    return roomId;
   }
 }
