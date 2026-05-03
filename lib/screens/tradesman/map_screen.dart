@@ -5,7 +5,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/reactive_tile.dart';
 import '../../widgets/search_filter_header.dart';
 import '../../models/property.dart';
-import '../../services/mock_data_service.dart';
+import '../../services/firestore_service.dart';
+import '../../models/review.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -16,24 +17,6 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final LatLng _mapCenter = const LatLng(39.7817, -89.6501); // Centered on mock data
-  List<Property> _properties = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProperties();
-  }
-
-  Future<void> _loadProperties() async {
-    final properties = await MockDataService.getProperties();
-    if (mounted) {
-      setState(() {
-        _properties = properties;
-        _isLoading = false;
-      });
-    }
-  }
 
   void _showComingSoon() {
     showDialog(
@@ -145,70 +128,97 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
               ),
-              MarkerLayer(
-                markers: _properties.map((prop) {
-                  return Marker(
-                    point: LatLng(prop.lat, prop.lng),
-                    width: 50,
-                    height: 50,
-                    child: GestureDetector(
-                      onTap: _showComingSoon, // In the future, this would scroll to the specific card
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.darkSurface,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow, width: 2),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
-                          ]
-                        ),
-                        child: Center(
-                          child: Text(
-                            prop.averageRating.toStringAsFixed(1),
-                            style: TextStyle(
-                              color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow,
-                              fontWeight: FontWeight.bold
+              StreamBuilder<List<Property>>(
+                stream: FirestoreService.streamProperties(),
+                builder: (context, snapshot) {
+                  final properties = snapshot.data ?? [];
+                  return MarkerLayer(
+                    markers: properties.map((prop) {
+                      return Marker(
+                        point: LatLng(prop.lat, prop.lng),
+                        width: 50,
+                        height: 50,
+                        child: SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: GestureDetector(
+                            onTap: _showComingSoon, // In the future, this would scroll to the specific card
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.darkSurface,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow, width: 2),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
+                                ]
+                              ),
+                              child: Center(
+                                child: Text(
+                                  prop.averageRating.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow,
+                                    fontWeight: FontWeight.bold
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }).toList(),
                   );
-                }).toList(),
+                }
               ),
             ],
           ),
 
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
-
-          // UI Overlay for mock properties using Reactive Tiles
+          // UI Overlay for live properties and reviews using Reactive Tiles
           Positioned(
             bottom: 20,
             left: 10,
             right: 10,
             child: SizedBox(
               height: 180,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _properties.length,
-                itemBuilder: (context, index) {
-                  final prop = _properties[index];
-                  // Find a mock review associated with this property
-                  final associatedReview = MockDataService.reviews.firstWhere(
-                    (r) => r.propertyId == prop.id,
-                    orElse: () => MockDataService.reviews.first, // fallback
+              child: StreamBuilder<List<Review>>(
+                stream: FirestoreService.streamReviews(),
+                builder: (context, reviewSnapshot) {
+                  if (reviewSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
+                  }
+                  final reviews = reviewSnapshot.data ?? [];
+                  if (reviews.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return StreamBuilder<List<Property>>(
+                    stream: FirestoreService.streamProperties(),
+                    builder: (context, propSnapshot) {
+                      final properties = propSnapshot.data ?? [];
+
+                      return ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: properties.length,
+                        itemBuilder: (context, index) {
+                          final prop = properties[index];
+                          // Find a review associated with this property from the live stream
+                          final associatedReview = reviews.firstWhere(
+                            (r) => r.propertyId == prop.id,
+                            orElse: () => reviews.first, // fallback
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: _buildMockReviewCard(
+                              title: prop.address,
+                              rating: "${prop.averageRating}/5",
+                              comment: associatedReview.text,
+                              author: associatedReview.authorName,
+                            ),
+                          );
+                        },
+                      );
+                    }
                   );
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: _buildMockReviewCard(
-                      title: prop.address,
-                      rating: "${prop.averageRating}/5",
-                      comment: associatedReview.text,
-                      author: associatedReview.authorName,
-                    ),
-                  );
-                },
+                }
               ),
             ),
           ),

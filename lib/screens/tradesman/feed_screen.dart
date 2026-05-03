@@ -4,34 +4,10 @@ import '../../widgets/reactive_tile.dart';
 import '../../widgets/search_filter_header.dart';
 import '../../widgets/knife_transition.dart';
 import '../../models/review.dart';
-import '../../services/mock_data_service.dart';
+import '../../services/firestore_service.dart';
 
-class FeedScreen extends StatefulWidget {
+class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
-
-  @override
-  State<FeedScreen> createState() => _FeedScreenState();
-}
-
-class _FeedScreenState extends State<FeedScreen> {
-  List<Review> _reviews = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReviews();
-  }
-
-  Future<void> _loadReviews() async {
-    final reviews = await MockDataService.getFeed();
-    if (mounted) {
-      setState(() {
-        _reviews = reviews;
-        _isLoading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,15 +20,29 @@ class _FeedScreenState extends State<FeedScreen> {
       body: Column(
         children: [
           const SearchFilterHeader(),
-          if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)))
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _reviews.length,
-                itemBuilder: (context, index) {
-                  final review = _reviews[index];
+          Expanded(
+            child: StreamBuilder<List<Review>>(
+              stream: FirestoreService.streamReviews(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                }
+
+                final reviews = snapshot.data ?? [];
+
+                if (reviews.isEmpty) {
+                  return const Center(child: Text('No reviews found.', style: TextStyle(color: AppTheme.textSecondary)));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: reviews.length,
+                  itemBuilder: (context, index) {
+                    final review = reviews[index];
                   return KnifeTransition(
                     delay: Duration(milliseconds: 100 * index), // Staggered knife unsheathing
                     initialOffset: 150.0 + (index * 20.0),
@@ -141,8 +131,10 @@ class _FeedScreenState extends State<FeedScreen> {
                     ),
                   );
                 },
-              ),
-            ),
+              );
+            },
+          ),
+          ),
         ],
       ),
     );
