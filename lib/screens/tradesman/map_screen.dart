@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../theme/app_theme.dart';
-import '../widgets/reactive_tile.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/reactive_tile.dart';
+import '../../widgets/search_filter_header.dart';
+import '../../models/property.dart';
+import '../../services/firestore_service.dart';
+import '../../models/review.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  // Coordinates based on "E Bergen Ave" reference (approximate coordinates for demo)
-  // We'll use a generic location in NJ for demonstration
-  final LatLng _mapCenter = const LatLng(40.8872, -74.0326); // Hackensack area, Bergen Ave
+class _MapScreenState extends State<MapScreen> {
+  final LatLng _mapCenter = const LatLng(39.7817, -89.6501); // Centered on mock data
 
   void _showComingSoon() {
     showDialog(
@@ -103,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
           FlutterMap(
             options: MapOptions(
               initialCenter: _mapCenter,
-              initialZoom: 18.0, // High zoom to see houses like in the image
+              initialZoom: 15.0,
             ),
             children: [
               ColorFiltered(
@@ -126,59 +128,108 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: const LatLng(40.88725, -74.0326),
-                    width: 50,
-                    height: 50,
-                    child: const Icon(Icons.home_repair_service, color: AppTheme.accentOrange, size: 40),
-                  ),
-                  Marker(
-                    point: const LatLng(40.88715, -74.0325),
-                    width: 50,
-                    height: 50,
-                    child: const Icon(Icons.warning_amber_rounded, color: AppTheme.accentYellow, size: 40),
-                  ),
-                ],
+              StreamBuilder<List<Property>>(
+                stream: FirestoreService.streamProperties(),
+                builder: (context, snapshot) {
+                  final properties = snapshot.data ?? [];
+                  return MarkerLayer(
+                    markers: properties.map((prop) {
+                      return Marker(
+                        point: LatLng(prop.lat, prop.lng),
+                        width: 50,
+                        height: 50,
+                        child: SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: GestureDetector(
+                            onTap: _showComingSoon, // In the future, this would scroll to the specific card
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.darkSurface,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow, width: 2),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
+                                ]
+                              ),
+                              child: Center(
+                                child: Text(
+                                  prop.averageRating.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    color: prop.averageRating < 2.5 ? AppTheme.accentOrange : AppTheme.accentYellow,
+                                    fontWeight: FontWeight.bold
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                }
               ),
             ],
           ),
 
-          // UI Overlay for mock reviews using Reactive Tiles
+          // UI Overlay for live properties and reviews using Reactive Tiles
           Positioned(
             bottom: 20,
             left: 10,
             right: 10,
             child: SizedBox(
               height: 180,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _buildMockReviewCard(
-                    title: "42 E Bergen Ave",
-                    rating: "2.1/5",
-                    comment: "Customer thinks 'flushable wipes' means flushable. Sent snake down, pulled up a sweater.",
-                    author: "Joe's Plumbing",
-                  ),
-                  const SizedBox(width: 16),
-                  _buildMockReviewCard(
-                    title: "38 E Bergen Ave",
-                    rating: "4.5/5",
-                    comment: "Paid in cash and offered me a cold beer. Electrical panel was a rat's nest but good folks.",
-                    author: "Sparky Dan",
-                  ),
-                  const SizedBox(width: 16),
-                  _buildMockReviewCard(
-                    title: "50 E Bergen Ave",
-                    rating: "1.0/5",
-                    comment: "Refused to pay for the drywall patching after I fixed the stud they broke. Avoid.",
-                    author: "Mike the Builder",
-                  ),
-                ],
+              child: StreamBuilder<List<Review>>(
+                stream: FirestoreService.streamReviews(),
+                builder: (context, reviewSnapshot) {
+                  if (reviewSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
+                  }
+                  final reviews = reviewSnapshot.data ?? [];
+                  if (reviews.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return StreamBuilder<List<Property>>(
+                    stream: FirestoreService.streamProperties(),
+                    builder: (context, propSnapshot) {
+                      final properties = propSnapshot.data ?? [];
+
+                      return ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: properties.length,
+                        itemBuilder: (context, index) {
+                          final prop = properties[index];
+                          // Find a review associated with this property from the live stream
+                          final associatedReview = reviews.firstWhere(
+                            (r) => r.propertyId == prop.id,
+                            orElse: () => reviews.first, // fallback
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: _buildMockReviewCard(
+                              title: prop.address,
+                              rating: "${prop.averageRating}/5",
+                              comment: associatedReview.text,
+                              author: associatedReview.authorName,
+                            ),
+                          );
+                        },
+                      );
+                    }
+                  );
+                }
               ),
             ),
-          )
+          ),
+
+          // Search and Filter Header (Top Overlay)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SearchFilterHeader(),
+          ),
         ],
       ),
     );
